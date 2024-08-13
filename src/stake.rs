@@ -45,111 +45,63 @@ impl Stake {
 
         (current_pubkey, all_pubkeys)
     }
-}
 
-fn create_stake_account() -> anyhow::Result<()> {
-    let url = "https://api.devnet.solana.com".to_string();
-    let rpc_client = RpcClient::new(url);
-    let blockhash = rpc_client.get_latest_blockhash()?;
+    pub fn create_stake_account(
+        &self,
+        amount_to_stake: u64,
+        withdraw_ts: i64,
+        withdraw_epoch: u64,
+    ) -> anyhow::Result<()> {
+        let blockhash = self.rpc_client.get_latest_blockhash()?;
 
-    let owner = Keypair::from_bytes(&[
-        11, 191, 140, 10, 171, 104, 130, 22, 77, 157, 200, 254, 89, 207, 201, 107, 80, 169, 106,
-        79, 62, 168, 173, 57, 208, 203, 74, 159, 115, 69, 133, 195, 155, 0, 125, 68, 208, 75, 27,
-        10, 82, 94, 151, 44, 75, 72, 248, 10, 148, 71, 133, 225, 98, 39, 184, 136, 161, 30, 24,
-        175, 20, 69, 96, 158,
-    ])?;
-    let stake_account = MyAccount::get_keypair_with(mnemonic, 1000);
-    let amount_to_stake = 100_000_000u64;
-    let create_stake_account_stake_ix = stake::instruction::create_account(
-        &owner.pubkey(),
-        &stake_account.pubkey(),
-        &Authorized {
-            staker: owner.pubkey(),
-            withdrawer: owner.pubkey(),
-        },
-        &Lockup {
-            unix_timestamp: 0,
-            epoch: 0,
-            custodian: owner.pubkey(),
-        },
-        amount_to_stake,
-    );
-    let tx = Transaction::new_signed_with_payer(
-        &create_stake_account_stake_ix,
-        Some(&owner.pubkey()),
-        &[&owner, &stake_account.0],
-        blockhash,
-    );
-    let sig = rpc_client.send_and_confirm_transaction(&tx)?;
-    println!("sig: {:?}", sig);
+        let create_stake_account_stake_ix = stake::instruction::create_account(
+            &self.payer.pubkey(),
+            &self.stake_account.pubkey(),
+            &Authorized {
+                staker: self.payer.pubkey(),
+                withdrawer: self.payer.pubkey(),
+            },
+            &Lockup {
+                unix_timestamp: withdraw_ts,
+                epoch: withdraw_epoch,
+                custodian: self.payer.pubkey(),
+            },
+            amount_to_stake,
+        );
+        let tx = Transaction::new_signed_with_payer(
+            &create_stake_account_stake_ix,
+            Some(&self.payer.pubkey()),
+            &[&self.payer, &self.stake_account],
+            blockhash,
+        );
+        let sig = self.rpc_client.send_and_confirm_transaction(&tx)?;
+        println!("sig: {:?}", sig);
 
-    Ok(())
-}
+        Ok(())
+    }
 
-fn stake() -> anyhow::Result<()> {
-    let url = "https://api.devnet.solana.com".to_string();
-    let rpc_client = RpcClient::new(url);
-    let blockhash = rpc_client.get_latest_blockhash()?;
+    pub fn stake(&self, validator_pubkey: Pubkey) -> anyhow::Result<()> {
+        let blockhash = self.rpc_client.get_latest_blockhash()?;
 
-    let owner = Keypair::from_bytes(&[
-        11, 191, 140, 10, 171, 104, 130, 22, 77, 157, 200, 254, 89, 207, 201, 107, 80, 169, 106,
-        79, 62, 168, 173, 57, 208, 203, 74, 159, 115, 69, 133, 195, 155, 0, 125, 68, 208, 75, 27,
-        10, 82, 94, 151, 44, 75, 72, 248, 10, 148, 71, 133, 225, 98, 39, 184, 136, 161, 30, 24,
-        175, 20, 69, 96, 158,
-    ])?;
-    let stake_account = MyAccount::get_keypair_with(mnemonic, 1000);
-    let validator_pubkey = Pubkey::from_str("28rDknpdBPNu5RU9yxbVqqHwnbXB9qaCigw1M53g7Nps")?;
+        // let validator_pubkey = Pubkey::from_str("28rDknpdBPNu5RU9yxbVqqHwnbXB9qaCigw1M53g7Nps")?;
+        let stake_ix = stake::instruction::delegate_stake(
+            &self.stake_account.pubkey(),
+            &self.payer.pubkey(),
+            &validator_pubkey,
+        );
+        let tx = Transaction::new_signed_with_payer(
+            &[stake_ix],
+            Some(&self.payer.pubkey()),
+            &[&self.payer],
+            blockhash,
+        );
+        let sig = self.rpc_client.send_and_confirm_transaction(&tx)?;
+        print!("sig: {:?}", sig);
 
-    let stake_ix = stake::instruction::delegate_stake(
-        &stake_account.pubkey(),
-        &owner.pubkey(),
-        &validator_pubkey,
-    );
-    let tx = Transaction::new_signed_with_payer(
-        &[stake_ix],
-        Some(&owner.pubkey()),
-        &[&owner],
-        blockhash,
-    );
-    let sig = rpc_client.send_and_confirm_transaction(&tx)?;
-    print!("sig: {:?}", sig);
+        Ok(())
+    }
 
-    Ok(())
-}
-
-fn check_stake_actived() -> anyhow::Result<()> {
-    let url = "https://api.devnet.solana.com".to_string();
-    let rpc_client = RpcClient::new(url);
-    let blockhash = rpc_client.get_latest_blockhash()?;
-
-    let owner = Keypair::from_bytes(&[
-        11, 191, 140, 10, 171, 104, 130, 22, 77, 157, 200, 254, 89, 207, 201, 107, 80, 169, 106,
-        79, 62, 168, 173, 57, 208, 203, 74, 159, 115, 69, 133, 195, 155, 0, 125, 68, 208, 75, 27,
-        10, 82, 94, 151, 44, 75, 72, 248, 10, 148, 71, 133, 225, 98, 39, 184, 136, 161, 30, 24,
-        175, 20, 69, 96, 158,
-    ])?;
-    let stake_account = MyAccount::get_keypair_with(mnemonic, 1000);
-    let validator_pubkey = Pubkey::from_str("28rDknpdBPNu5RU9yxbVqqHwnbXB9qaCigw1M53g7Nps")?;
-
-    let stake_ix = stake::instruction::delegate_stake(
-        &stake_account.pubkey(),
-        &owner.pubkey(),
-        &validator_pubkey,
-    );
-    let tx = Transaction::new_signed_with_payer(
-        &[stake_ix],
-        Some(&owner.pubkey()),
-        &[&owner],
-        blockhash,
-    );
-    let sig = rpc_client.send_and_confirm_transaction(&tx)?;
-    print!("sig: {:?}", sig);
-
-    Ok(())
-}
-
-fn main() {
-    create_stake_account().expect("");
-
-    stake().expect("");
+    pub fn check_stake_actived(&self, validator_pubkey: Pubkey) -> anyhow::Result<bool> {
+        Ok(true)
+    }
 }

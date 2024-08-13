@@ -34,7 +34,7 @@ impl MyAccount {
 
 impl MyAccount {
     pub fn keypair(&self) -> &Keypair {
-       &self.0
+        &self.0
     }
     pub fn address(&self) -> String {
         self.0.pubkey().to_string()
@@ -66,7 +66,6 @@ impl MyAccount {
 }
 
 impl MyAccount {
-
     pub fn send_sol(&self, to: Pubkey, lamports: u64) -> anyhow::Result<()> {
         let url = "https://api.devnet.solana.com".to_string();
         let rpc_client = RpcClient::new(url);
@@ -87,5 +86,4 @@ impl MyAccount {
 
         Ok(())
     }
-
 }
