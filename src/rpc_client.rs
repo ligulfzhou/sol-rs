@@ -14,6 +14,7 @@ use spl_token::state::Account;
 use spl_token::{id, instruction, state::Mint};
 use std::sync::Arc;
 
+
 #[derive(Clone)]
 pub struct SolRpcClient {
     pub rpc_client: Arc<RpcClient>,
@@ -83,7 +84,7 @@ impl SolRpcClient {
 
 /// spl related
 ///
-/// create_spl_token
+/// https://0xksure.medium.com/mint-tokens-on-solana-using-the-rust-sdk-3b05b07ca842
 impl SolRpcClient {
     pub fn create_spl_token(
         &self,

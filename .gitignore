@@ -27,5 +27,3 @@ src/stake.rs
 
 src/bin/main.rs
 src/bin/stake.rs
-src/bin/create_spl_token.rs
-src/bin/send_spl_token.rs
