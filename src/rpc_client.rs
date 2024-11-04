@@ -14,7 +14,6 @@ use spl_token::state::Account;
 use spl_token::{id, instruction, state::Mint};
 use std::sync::Arc;
 
-
 #[derive(Clone)]
 pub struct SolRpcClient {
     pub rpc_client: Arc<RpcClient>,
