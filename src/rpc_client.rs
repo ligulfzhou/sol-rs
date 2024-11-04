@@ -219,6 +219,121 @@ impl SolRpcClient {
 
         self.send_tx(instructions, &[src_account, payer], &payer.pubkey())
     }
+
+    // not usefull
+    pub fn transfer_spl_token_to_ata(
+        &self,
+        payer: &Keypair,
+        mint_account: &Pubkey,
+        src_account: &Keypair,
+        to_ata: &Pubkey,
+        amount: u64,
+    ) -> eyre::Result<String> {
+        let token_program = &id();
+        let src_ata = spl_associated_token_account::get_associated_token_address(
+            &src_account.pubkey(),
+            mint_account,
+        );
+        let transfer_ix = spl_token::instruction::transfer(
+            token_program,
+            &src_ata,
+            &to_ata,
+            &src_account.pubkey(),
+            &[&payer.pubkey(), &src_account.pubkey()],
+            amount,
+        )?;
+
+        // todo: have not apply to other places
+        // src_account and payer may be same.
+        // though [payer, payer] still works
+        let signers = {
+            if src_account.pubkey().eq(&payer.pubkey()) {
+                vec![payer]
+            } else {
+                vec![src_account, payer]
+            }
+        };
+
+        self.send_tx(vec![transfer_ix], &signers, &payer.pubkey())
+    }
+
+    pub fn distribute_spl_token_to_idxs(
+        &self,
+        payer: &Keypair,
+        mint_account: &Pubkey,
+        src_account_idx: u32,
+        to_account_idxs: &[u32],
+        amounts: &[u64],
+    ) -> eyre::Result<String> {
+        let src_account = KeypairGenerator::get_keypair_with(MNEMONIC_CODE, src_account_idx);
+        let to_accounts = to_account_idxs
+            .iter()
+            .map(|idx| KeypairGenerator::get_keypair_with(MNEMONIC_CODE, *idx).pubkey())
+            .collect::<Vec<_>>();
+
+        self.distribute_spl_token_to_pubkeys(
+            payer,
+            mint_account,
+            &src_account,
+            &to_accounts,
+            amounts,
+        )
+    }
+
+    pub fn distribute_spl_token_to_pubkeys(
+        &self,
+        payer: &Keypair,
+        mint_account: &Pubkey,
+        src_account: &Keypair,
+        to_accounts: &[Pubkey],
+        amounts: &[u64],
+    ) -> eyre::Result<String> {
+        let token_program = &id();
+
+        // src_ata
+        let src_ata = spl_associated_token_account::get_associated_token_address(
+            &src_account.pubkey(),
+            mint_account,
+        );
+
+        // check atas exists
+        let atas = to_accounts
+            .iter()
+            .map(|account| {
+                spl_associated_token_account::get_associated_token_address(account, mint_account)
+            })
+            .collect::<Vec<_>>();
+        let ata_accounts = self.rpc_client.get_multiple_accounts(&atas)?;
+
+        let mut instructions = vec![];
+        // if ata not exists, create it
+        for (idx, account) in ata_accounts.iter().enumerate() {
+            if account.is_some() {
+                continue;
+            }
+            instructions.push(
+                spl_associated_token_account::instruction::create_associated_token_account(
+                    &payer.pubkey(),
+                    &to_accounts[idx],
+                    mint_account,
+                    &token_program,
+                ),
+            );
+        }
+
+        for (idx, ata) in atas.iter().enumerate() {
+            instructions.push(spl_token::instruction::transfer(
+                token_program,
+                &src_ata,
+                &ata,
+                &src_account.pubkey(),
+                &[&payer.pubkey(), &src_account.pubkey()],
+                amounts[idx],
+            )?);
+        }
+
+        self.send_tx(instructions, &[src_account, payer], &payer.pubkey())
+    }
 }
 
 impl From<Arc<RpcClient>> for SolRpcClient {
