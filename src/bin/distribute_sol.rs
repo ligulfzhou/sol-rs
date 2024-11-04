@@ -6,8 +6,7 @@ use solana_sdk::native_token::LAMPORTS_PER_SOL;
 use solana_sdk::signer::Signer;
 
 fn main() -> eyre::Result<()> {
-    // 为了简单，我都用一份助记词，去生成 无限对keypair
-    // 从 同一份私钥的 编号1(0被用了)， 给2,3,4,5,6转sol
+    // use idx#1 as payer, distribute 1/10*LAMPORTS_PER_SOL to idx#{2,3,4,5,6}
     let rpc_client = SolRpcClient::new_with_network(Network::Devnet);
 
     let hash =

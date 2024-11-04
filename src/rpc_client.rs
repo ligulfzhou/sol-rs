@@ -10,8 +10,10 @@ use solana_sdk::{
     system_instruction,
     transaction::Transaction,
 };
-use spl_token::state::Account;
-use spl_token::{id, instruction, state::Mint};
+use spl_token::{
+    id,
+    state::{Account, Mint},
+};
 use std::sync::Arc;
 
 #[derive(Clone)]
@@ -106,7 +108,7 @@ impl SolRpcClient {
             token_program,
         );
 
-        let token_mint_ix = instruction::initialize_mint(
+        let token_mint_ix = spl_token::instruction::initialize_mint(
             token_program,
             &mint_account.pubkey(),
             &payer.pubkey(),
@@ -152,7 +154,7 @@ impl SolRpcClient {
         }
 
         // mint spl token to PDA
-        let mint_to_ix = instruction::mint_to(
+        let mint_to_ix = spl_token::instruction::mint_to(
             &id(),
             &mint_account.pubkey(),
             &associated_token_account,
@@ -180,7 +182,43 @@ impl SolRpcClient {
         Ok(Account::unpack(&account.data)?.amount)
     }
 
-    pub fn transfer_spl_token() {}
+    pub fn transfer_spl_token(
+        &self,
+        payer: &Keypair,
+        mint_account: &Pubkey,
+        src_account: &Keypair,
+        to_account: &Pubkey,
+        amount: u64,
+    ) -> eyre::Result<String> {
+        let token_program = &id();
+        let src_ata = spl_associated_token_account::get_associated_token_address(
+            &src_account.pubkey(),
+            mint_account,
+        );
+        let to_ata =
+            spl_associated_token_account::get_associated_token_address(to_account, mint_account);
+        let mut instructions = vec![];
+        if self.rpc_client.get_account(&to_ata).is_err() {
+            let assoc_ix =
+                spl_associated_token_account::instruction::create_associated_token_account(
+                    &payer.pubkey(),
+                    &to_account,
+                    mint_account,
+                    &id(),
+                );
+            instructions.push(assoc_ix);
+        }
+        instructions.push(spl_token::instruction::transfer(
+            token_program,
+            &src_ata,
+            &to_ata,
+            &src_account.pubkey(),
+            &[&payer.pubkey(), &src_account.pubkey()],
+            amount,
+        )?);
+
+        self.send_tx(instructions, &[src_account, payer], &payer.pubkey())
+    }
 }
 
 impl From<Arc<RpcClient>> for SolRpcClient {
