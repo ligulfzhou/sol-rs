@@ -35,6 +35,23 @@ impl SolRpcClient {
 }
 
 impl SolRpcClient {
+    pub fn send_tx(
+        &self,
+        instructions: Vec<Instruction>,
+        signers: &[&Keypair],
+        payer: &Pubkey,
+    ) -> eyre::Result<String> {
+        let recent_hash = self.rpc_client.get_latest_blockhash()?;
+
+        let tx =
+            Transaction::new_signed_with_payer(&instructions, Some(&payer), signers, recent_hash);
+        let sig = self.rpc_client.send_and_confirm_transaction(&tx)?;
+
+        Ok(sig.to_string())
+    }
+}
+
+impl SolRpcClient {
     pub fn ditribute_sol_to_idxs(
         &self,
         from_idx: u32,
@@ -63,21 +80,6 @@ impl SolRpcClient {
             .collect::<Vec<_>>();
         let ix = system_instruction::transfer_many(&from_keypair.pubkey(), &pubkey_amounts);
         self.send_tx(ix, &[from_keypair], &from_keypair.pubkey())
-    }
-
-    pub fn send_tx(
-        &self,
-        instructions: Vec<Instruction>,
-        signers: &[&Keypair],
-        payer: &Pubkey,
-    ) -> eyre::Result<String> {
-        let recent_hash = self.rpc_client.get_latest_blockhash()?;
-
-        let tx =
-            Transaction::new_signed_with_payer(&instructions, Some(&payer), signers, recent_hash);
-        let sig = self.rpc_client.send_and_confirm_transaction(&tx)?;
-
-        Ok(sig.to_string())
     }
 }
 
