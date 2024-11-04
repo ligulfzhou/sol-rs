@@ -20,5 +20,12 @@ Cargo.lock
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 .idea/
 
-src/consts.rs
 accounts.txt
+
+src/consts.rs
+src/stake.rs
+
+src/bin/main.rs
+src/bin/stake.rs
+src/bin/create_spl_token.rs
+src/bin/send_spl_token.rs
